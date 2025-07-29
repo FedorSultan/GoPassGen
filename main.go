@@ -8,20 +8,38 @@ import (
 	"strconv"
 )
 
-const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{}<>?"
+func passgen(length int, useUpper, useDigits, useSpecial bool) string {
+	lower := "abcdefghijklmnopqrstuvwxyz"
+	upper := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	digits := "0123456789"
+	special := "!@#$%^&*()-_=+[]{}<>?"
 
-func generatePassword(length int) string {
-	password := make([]byte, length)
-	for i := range password {
-		num, _ := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
-		password[i] = charset[num.Int64()]
+	charset := lower
+	if useUpper {
+		charset += upper
 	}
-	return string(password)
+	if useDigits {
+		charset += digits
+	}
+	if useSpecial {
+		charset += special
+	}
+
+	if len(charset) == 0 {
+		return "Ошибка: выберите хотя бы 1 тип символов"
+	}
+
+	passwrd := make([]byte, length)
+	for i := range passwrd {
+		num, _ := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		passwrd[i] = charset[num.Int64()]
+	}
+	return string(passwrd)
 }
 
 func main() {
 	err := ui.Main(func() {
-		window := ui.NewWindow("Генератор паролей", 300, 150, false)
+		window := ui.NewWindow("Генератор паролей", 400, 250, false)
 		window.OnClosing(func(*ui.Window) bool {
 			ui.Quit()
 			return true
@@ -30,6 +48,10 @@ func main() {
 		lengthEntry := ui.NewEntry()
 		resultLabel := ui.NewLabel("Пароль появится здесь")
 
+		checkUpper := ui.NewCheckbox("Включать заглавные буквы (A-Z)")
+		checkDigits := ui.NewCheckbox("Включать цифры (0-9)")
+		checkSpecial := ui.NewCheckbox("Включать спецсимволы (!@#...)")
+
 		button := ui.NewButton("Сгенерировать")
 		button.OnClicked(func(*ui.Button) {
 			length, err := strconv.Atoi(lengthEntry.Text())
@@ -37,13 +59,17 @@ func main() {
 				resultLabel.SetText("Ошибка: введите число > 0")
 				return
 			}
-			password := generatePassword(length)
-			resultLabel.SetText(password)
+
+			passwrd := passgen(length, checkUpper.Checked(), checkDigits.Checked(), checkSpecial.Checked())
+			resultLabel.SetText(passwrd)
 		})
 
 		box := ui.NewVerticalBox()
 		box.Append(ui.NewLabel("Длина пароля:"), false)
 		box.Append(lengthEntry, false)
+		box.Append(checkUpper, false)
+		box.Append(checkDigits, false)
+		box.Append(checkSpecial, false)
 		box.Append(button, false)
 		box.Append(resultLabel, false)
 
