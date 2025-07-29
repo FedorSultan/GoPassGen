@@ -5,6 +5,8 @@ import (
 	"github.com/andlabs/ui"
 	"log"
 	"math/big"
+	"os/exec"
+	"runtime"
 	"strconv"
 )
 
@@ -37,43 +39,94 @@ func passgen(length int, useUpper, useDigits, useSpecial bool) string {
 	return string(passwrd)
 }
 
+// copt to clipboard
+func ctp(text string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "echo "+text+"| clip")
+	case "linux":
+		cmd = exec.Command("xclip", "-selection", "clipboard")
+	default:
+		return
+	}
+
+	err := cmd.Run()
+	if err != nil {
+		return
+	}
+}
+
 func main() {
 	err := ui.Main(func() {
-		window := ui.NewWindow("Генератор паролей", 400, 250, false)
+		window := ui.NewWindow("Генератор паролей", 420, 300, false)
 		window.OnClosing(func(*ui.Window) bool {
 			ui.Quit()
 			return true
 		})
 
 		lengthEntry := ui.NewEntry()
-		resultLabel := ui.NewLabel("Пароль появится здесь")
+		lengthEntry.SetText("12")
+		lengthBox := ui.NewHorizontalBox()
+		lengthBox.Append(ui.NewLabel("Длина пароля:"), false)
+		lengthBox.Append(lengthEntry, true)
 
-		checkUpper := ui.NewCheckbox("Включать заглавные буквы (A-Z)")
-		checkDigits := ui.NewCheckbox("Включать цифры (0-9)")
-		checkSpecial := ui.NewCheckbox("Включать спецсимволы (!@#...)")
+		checkUpper := ui.NewCheckbox("Заглавные (A-Z)")
+		checkUpper.SetChecked(true)
+		checkDigits := ui.NewCheckbox("Цифры (0-9)")
+		checkDigits.SetChecked(true)
+		checkSpecial := ui.NewCheckbox("Спецсимволы (!@#...)")
+		checkSpecial.SetChecked(true)
 
-		button := ui.NewButton("Сгенерировать")
-		button.OnClicked(func(*ui.Button) {
+		checkboxGroup := ui.NewVerticalBox()
+		checkboxGroup.Append(checkUpper, false)
+		checkboxGroup.Append(checkDigits, false)
+		checkboxGroup.Append(checkSpecial, false)
+
+		optionsGroup := ui.NewGroup("Настройки символов")
+		optionsGroup.SetChild(checkboxGroup)
+
+		passwordLabel := ui.NewEntry()
+		passwordLabel.SetReadOnly(true)
+
+		resultGroup := ui.NewGroup("Сгенерированный пароль")
+		resultBox := ui.NewVerticalBox()
+		resultBox.Append(passwordLabel, false)
+		resultGroup.SetChild(resultBox)
+
+		buttonGenerate := ui.NewButton("Сгенерировать")
+		buttonCopy := ui.NewButton("Скопировать")
+
+		buttons := ui.NewHorizontalBox()
+		buttons.Append(buttonGenerate, false)
+		buttons.Append(buttonCopy, false)
+
+		buttonGenerate.OnClicked(func(*ui.Button) {
 			length, err := strconv.Atoi(lengthEntry.Text())
 			if err != nil || length <= 0 {
-				resultLabel.SetText("Ошибка: введите число > 0")
+				passwordLabel.SetText("Ошибка: введите число > 0")
 				return
 			}
-
-			passwrd := passgen(length, checkUpper.Checked(), checkDigits.Checked(), checkSpecial.Checked())
-			resultLabel.SetText(passwrd)
+			password := passgen(length, checkUpper.Checked(), checkDigits.Checked(), checkSpecial.Checked())
+			passwordLabel.SetText(password)
 		})
 
-		box := ui.NewVerticalBox()
-		box.Append(ui.NewLabel("Длина пароля:"), false)
-		box.Append(lengthEntry, false)
-		box.Append(checkUpper, false)
-		box.Append(checkDigits, false)
-		box.Append(checkSpecial, false)
-		box.Append(button, false)
-		box.Append(resultLabel, false)
+		buttonCopy.OnClicked(func(*ui.Button) {
+			text := passwordLabel.Text()
+			if text != "" {
+				ctp(text)
+			}
+		})
 
-		window.SetChild(box)
+		//main Window
+		mainBox := ui.NewVerticalBox()
+		mainBox.SetPadded(true)
+		mainBox.Append(lengthBox, false)
+		mainBox.Append(optionsGroup, false)
+		mainBox.Append(buttons, false)
+		mainBox.Append(resultGroup, false)
+
+		window.SetChild(mainBox)
 		window.Show()
 	})
 	if err != nil {
